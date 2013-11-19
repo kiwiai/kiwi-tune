@@ -1,0 +1,324 @@
+<script src="./js/MIDI/AudioDetect.js" type="text/javascript"></script>
+<script src="./js/MIDI/LoadPlugin.js" type="text/javascript"></script>
+<script src="./js/MIDI/Plugin.js" type="text/javascript"></script>
+<script src="./js/MIDI/Player.js" type="text/javascript"></script>
+<script src="./js/Window/DOMLoader.XMLHttp.js" type="text/javascript"></script>
+<script src="./js/Window/DOMLoader.script.js" type="text/javascript"></script>
+<!-- extras -->
+<script src="./inc/Base64.js" type="text/javascript"></script>
+<script src="./inc/base64binary.js" type="text/javascript"></script>
+<script src="./js/jQuery/jquery.min.js"></script>
+<script src="./js/socket.io.js"></script>
+<script src="./midiClient.js"></script> 
+
+<script>
+
+var _velocity = 127;
+var _orientation = 21;
+var _ready = false;
+var dataNum = 0; 
+var socket; 
+var ready = false; 
+
+var pianoNotes = [21, 23, 25, 26, 28, 30, 32, 33, 35, 37, 38, 40, 42, 44, 45, 47, 49, 50, 52, 54, 56, 57, 59, 61, 62, 64, 66, 68, 69, 71, 73, 74, 76, 78, 80, 81, 83, 85, 86, 88, 90, 92, 93, 95, 97, 98, 100, 102, 104, 105, 107, 109, 110, 112, 114, 116, 117, 119, 121];
+var oldOrientation = null;
+var newOrientation = null;
+
+var orientationArr = new Array();
+
+socket.on('message', function (data) {
+	//alert(ready)
+   	if (ready == true) { 
+   		_orientation = 100 + Gx*100;
+   		_orientation = parseInt(_orientation);
+   		newOrientation = _orientation;
+   		orientationArr.push(_orientation);
+		var delay = 1/20; // play one note every quarter second
+   		if(oldOrientation != null) {
+   			if(oldOrientation == newOrientation) return;
+   			
+   			if(oldOrientation > newOrientation) {
+	
+   				if((oldOrientation - newOrientation) > 5) {
+   					oldOrientation = newOrientation + 5;
+   				}
+				for(d=pianoNotes.length-1; d>=0; d--) {
+	   				if(pianoNotes[d] <= oldOrientation && pianoNotes[d] >= newOrientation) {
+	   					MIDI.noteOn(3, pianoNotes[d], _velocity, delay);
+	   					oldOrientation = pianoNotes[d];
+	   					$("#orient").html("Actual = " + _orientation + " Played=" + oldOrientation);
+	   					delayMore(1100);
+	   				}
+	   			}
+   			} else {
+
+   				if((newOrientation - oldOrientation) > 5) {
+   					oldOrientation = newOrientation - 5;
+   				}
+	   			for(d=0; d<pianoNotes.length; d++) {
+	   				if(pianoNotes[d] >= oldOrientation && pianoNotes[d] <= newOrientation) {
+	   					MIDI.noteOn(3, pianoNotes[d], _velocity, delay);
+	   					oldOrientation = pianoNotes[d];
+	   					$("#orient").html("Actual = " + _orientation + " Played=" + oldOrientation);
+	   					delayMore(1100);
+	   				}
+	   			}
+   			}
+   		} else {
+   			if(pianoNotes.indexOf(_orientation) != -1) {
+   			    MIDI.noteOn(3, _orientation, _velocity, delay);
+   			 	oldOrientation = _orientation;
+   		    }
+   		}
+   		
+	   	//$("#velo").html(_velocity);
+		$("#orient").html("Actual = " + _orientation + " Played=" + oldOrientation);
+	
+	   	//alert(_ready);
+   		//processMidi();
+   		//if(_ready) {
+   		//	alert(_orientation + " data = " + data);
+       	//var delay = 1/10; // play one note every quarter second
+    	// play the note
+    	//if(pianoNotes.indexOf(_orientation) != -1) {
+	    //	MIDI.noteOn(0, _orientation, _velocity, delay);
+    	//}
+    	// play the some note 3-steps up
+   	 	//MIDI.noteOn(1, _orientation, 63, delay);
+    }
+});
+  
+window.onload = function () {
+	MIDI.loadPlugin({
+		soundfontUrl: "./soundfont/",
+		instruments: [ "acoustic_grand_piano"], 
+		callback: function() {
+			MIDI.programChange(0, 0);
+			MIDI.programChange(1, 118);
+			MIDI.programChange(2, 118);
+			ready = true;
+			alert('Start');
+			//MidiCallback();
+		} 
+	});  
+}
+
+function MidiCallback() {
+	delay = 1/10;
+	
+	for(i=0; i<pianoNotes.length; i++) {	
+		//_orientation+=2;
+		_orientation = pianoNotes[i];
+		MIDI.noteOn(0, _orientation, _velocity, delay);
+		$("#orient").html(i  + " :: " + _orientation);
+		delayMore(10000);
+	}
+}
+
+function delayMore(val) {
+	for(ss=0; ss<val; ss++) {
+		for(sss=0; sss<val; sss++) {
+		}
+	}
+	console.log('ss')
+}
+</script>
+
+
+velocity
+<button onclick="velocity(true)">++</button>
+
+<button onclick="velocity(false)">--</button>
+
+</br>
+velocity = 127<div id="velo"></div>
+</br>
+</br>
+
+orientation
+<button onclick="orientation(true)">++</button>
+<button onclick="orientation(false)">--</button>
+
+</br>
+orientation = <div id="orient"></div>
+</br>
+</br>
+
+<button onclick="stop()"> Stop! </button>
+
+
+<div id="velocity"></div>
+<script>
+
+function velocity(value) {
+
+	if(value) {
+		_velocity ++;
+	}
+	else if(_velocity >0) {
+		_velocity --;
+	}
+	processMidi();
+};
+
+function orientation(value) {
+
+	if(value) {
+		_orientation +=2;
+	}
+	else if(_orientation >1) {
+		_orientation -=2;
+	}
+		
+	processMidi();
+};
+
+function processMidi() {
+	_orientation = parseInt(_orientation)
+	$("#velo").html(_velocity);
+	//$("#orient").html(_orientation);
+	document.getElementById("orient").innerHTML = _orientation;
+	//alert("velocity =" + _velocity + " orientation =" + _orientation)
+	var delay = 1/2; // play one note every quarter second
+	// play the note
+	MIDI.noteOn(0, _orientation, _velocity, delay);
+	// play the some note 3-steps up
+	MIDI.noteOn(1, _orientation, _velocity, delay);
+	console.log(MIDI.pianoKeyOffset);
+};
+
+function stop() {
+	MIDI.stopAllNotes;
+};
+
+
+
+function playSong() {
+	var noteEvents = [];
+	["C4", "E4", "G4"].forEach(function(note) {
+	    Array.prototype.push.apply(noteEvents, MidiEvent.createNote(note));
+	});
+
+	// Create a track that contains the events to play the notes above
+	var track = new MidiTrack({ events: noteEvents });
+
+	// Creates an object that contains the final MIDI track in base64 and some
+	// useful methods.
+	var song  = MidiWriter({ tracks: [track] });
+	
+	// Alert the base64 representation of the MIDI file
+	alert(song.b64);
+	
+	//Play the song
+	//song.play();
+}
+
+
+</script>
+<link rel="stylesheet" type="text/css" href="http://www.flotcharts.org/css/flot.css">
+<link rel="stylesheet" type="text/css" href="http://www.flotcharts.org/css/demo.css">
+
+<div class="demo-container">
+	<div id="placeholder" class="demo-placeholder" style="padding: 0px; position: relative;">
+		<canvas class="flot-base" width="818" height="413" style="direction: ltr; position: absolute; left: 0px; top: 0px; width: 818px; height: 413px;">
+		</canvas>
+		<div class="flot-text" style="position: absolute; top: 0px; left: 0px; bottom: 0px; right: 0px; font-size: smaller; color: rgb(84, 84, 84);">
+			<div class="flot-y-axis flot-y1-axis yAxis y1Axis" style="position: absolute; top: 0px; left: 0px; bottom: 0px; right: 0px; display: block;">
+				<div class="flot-tick-label tickLabel" style="position: absolute; top: 397px; left: 16px; text-align: right;">0</div>
+				<div class="flot-tick-label tickLabel" style="position: absolute; top: 318px; left: 9px; text-align: right;">20</div>
+				<div class="flot-tick-label tickLabel" style="position: absolute; top: 238px; left: 9px; text-align: right;">40</div>
+				<div class="flot-tick-label tickLabel" style="position: absolute; top: 159px; left: 9px; text-align: right;">60</div>
+				<div class="flot-tick-label tickLabel" style="position: absolute; top: 79px; left: 9px; text-align: right;">80</div>
+				<div class="flot-tick-label tickLabel" style="position: absolute; top: 0px; left: 2px; text-align: right;">100</div>
+			</div>
+		</div>
+		<canvas class="flot-overlay" width="818" height="413" style="direction: ltr; position: absolute; left: 0px; top: 0px; width: 818px; height: 413px;"></canvas>
+	</div>
+	
+</div>
+
+<script language="javascript" type="text/javascript" src="http://www.flotcharts.org/javascript/jquery.flot.min.js"></script>
+
+<script type="text/javascript">
+
+	$(function() {
+
+		// We use an inline data source in the example, usually data would
+		// be fetched from a server
+
+		var data = [],
+			totalPoints = 30;
+
+		function getRandomData() {
+ 			//if (res.length) {
+            //	res = res.slice(1);
+        	//}
+
+			var res = [];
+			for (var i = 0; i < 500; i++) {
+				if(orientationArr.length >=400) {
+    	    		orientationArr = orientationArr.slice(1);
+	        	}
+
+				res.push([i, orientationArr[i]])
+			}
+			
+			return res;
+		}
+
+
+		// Set up the control widget
+
+		var updateInterval = 30;
+		$("#updateInterval").val(updateInterval).change(function () {
+			var v = $(this).val();
+			if (v && !isNaN(+v)) {
+				updateInterval = +v;
+				if (updateInterval < 1) {
+					updateInterval = 1;
+				} else if (updateInterval > 2000) {
+					updateInterval = 2000;
+				}
+				$(this).val("" + updateInterval);
+			}
+		});
+
+		series = [{
+			data: getRandomData(),
+			lines: {
+				fill: false
+			}
+		}];
+
+
+		var plot = $.plot("#placeholder", series, {
+			series: {
+				shadowSize: 10	// Drawing is faster without shadows
+			},
+			yaxis: {
+				min: 0,
+				max: 200
+			},
+			xaxis: {
+				show: false
+			}
+		});
+
+		function update() {
+
+			plot.setData([getRandomData()]);
+
+			// Since the axes don't change, we don't need to call plot.setupGrid()
+
+			plot.draw();
+			setTimeout(update, updateInterval);
+		}
+
+		update();
+
+		// Add the Flot version string to the footer
+
+		$("#footer").prepend("Flot " + $.plot.version + " &ndash; ");
+	});
+
+	</script>
